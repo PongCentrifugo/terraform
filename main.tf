@@ -247,7 +247,7 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.main.token
 }
 
-resource "kubernetes_config_map_v1" "aws_auth" {
+resource "kubernetes_config_map_v1_data" "aws_auth" {
   metadata {
     name      = "aws-auth"
     namespace = "kube-system"
@@ -268,7 +268,8 @@ resource "kubernetes_config_map_v1" "aws_auth" {
     ])
   }
 
-  depends_on = [aws_eks_node_group.main]
+  force       = true
+  depends_on  = [aws_eks_node_group.main]
 }
 
 resource "aws_cloudwatch_log_group" "backend" {
