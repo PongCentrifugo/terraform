@@ -86,3 +86,8 @@ variable "redis_node_type" {
   description = "ElastiCache Redis node type."
   default     = "cache.t3.micro"
 }
+
+variable "github_actions_role_arn" {
+  type        = string
+  description = "IAM Role ARN used by GitHub Actions to deploy to EKS."
+}

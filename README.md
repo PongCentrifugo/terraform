@@ -23,12 +23,14 @@ terraform init
 terraform plan \
   -var="centrifugo_secret=YOUR_SECRET" \
   -var="centrifugo_api_key=YOUR_API_KEY" \
-  -var="frontend_bucket_name=YOUR_UNIQUE_BUCKET"
+  -var="frontend_bucket_name=YOUR_UNIQUE_BUCKET" \
+  -var="github_actions_role_arn=arn:aws:iam::<account_id>:role/gha-pong-deploy-role"
 
 terraform apply \
   -var="centrifugo_secret=YOUR_SECRET" \
   -var="centrifugo_api_key=YOUR_API_KEY" \
-  -var="frontend_bucket_name=YOUR_UNIQUE_BUCKET"
+  -var="frontend_bucket_name=YOUR_UNIQUE_BUCKET" \
+  -var="github_actions_role_arn=arn:aws:iam::<account_id>:role/gha-pong-deploy-role"
 ```
 
 ### Outputs
