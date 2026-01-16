@@ -1,10 +1,10 @@
 ## Terraform (AWS)
 
-This folder provisions AWS infrastructure for the Pong application (EKS):
+This folder provisions AWS infrastructure for the Pong application (EKS + Kubernetes resources):
 
 - VPC, public/private subnets, NAT
 - EKS cluster with node group
-- Kubernetes manifests for backend + Centrifugo
+- Kubernetes resources for backend + Centrifugo (managed by Terraform)
 - ElastiCache Redis
 - S3 + CloudFront for frontend hosting
 - ECR repositories for images
@@ -38,7 +38,7 @@ terraform apply \
 After apply, Terraform outputs:
 
 - `cloudfront_domain` → Frontend URL
-- `backend_ecr_repository` → Push backend images here
+- `backend_ecr_repository` → Push backend images here (used by `backend_image` variable)
 - `cloudfront_distribution_id` → For cache invalidations
 - `eks_cluster_name` → EKS cluster name
 

@@ -30,7 +30,7 @@ variable "private_subnet_cidrs" {
 
 variable "backend_image" {
   type        = string
-  description = "Backend container image (ECR URL or public)."
+  description = "Backend container image (ECR URL with tag)."
   default     = "public.ecr.aws/docker/library/golang:1.22"
 }
 
@@ -90,4 +90,10 @@ variable "redis_node_type" {
 variable "github_actions_role_arn" {
   type        = string
   description = "IAM Role ARN used by GitHub Actions to deploy to EKS."
+}
+
+variable "k8s_namespace" {
+  type        = string
+  description = "Kubernetes namespace for deployments."
+  default     = "default"
 }

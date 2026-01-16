@@ -146,6 +146,7 @@ Set these **Terraform variables** in the workspace:
 - `centrifugo_api_key`
 - `frontend_bucket_name`
 - `github_actions_role_arn`
+- `backend_image` (ECR image with tag, example: `123456789012.dkr.ecr.us-east-1.amazonaws.com/pong-backend:latest`)
 
 ### GitHub Actions secrets
 

@@ -272,6 +272,200 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
   depends_on  = [aws_eks_node_group.main]
 }
 
+resource "kubernetes_secret_v1" "pong_secrets" {
+  metadata {
+    name      = "pong-secrets"
+    namespace = var.k8s_namespace
+  }
+
+  string_data = {
+    CENTRIFUGO_SECRET  = var.centrifugo_secret
+    CENTRIFUGO_API_KEY = var.centrifugo_api_key
+  }
+}
+
+resource "kubernetes_deployment_v1" "backend" {
+  metadata {
+    name      = "pong-backend"
+    namespace = var.k8s_namespace
+    labels = {
+      app = "pong-backend"
+    }
+  }
+
+  spec {
+    replicas = var.desired_count_backend
+
+    selector {
+      match_labels = {
+        app = "pong-backend"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "pong-backend"
+        }
+      }
+
+      spec {
+        container {
+          name  = "backend"
+          image = var.backend_image
+
+          port {
+            container_port = var.backend_port
+          }
+
+          env {
+            name  = "PORT"
+            value = tostring(var.backend_port)
+          }
+
+          env {
+            name  = "CENTRIFUGO_API_URL"
+            value = "http://pong-centrifugo"
+          }
+
+          env {
+            name = "CENTRIFUGO_API_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.pong_secrets.metadata[0].name
+                key  = "CENTRIFUGO_API_KEY"
+              }
+            }
+          }
+
+          env {
+            name = "CENTRIFUGO_SECRET"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.pong_secrets.metadata[0].name
+                key  = "CENTRIFUGO_SECRET"
+              }
+            }
+          }
+
+          env {
+            name  = "TOKEN_TTL"
+            value = "15m"
+          }
+
+          env {
+            name  = "REDIS_URL"
+            value = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/0"
+          }
+
+          env {
+            name  = "REDIS_PUBSUB_PATTERN"
+            value = "centrifugo.*"
+          }
+
+          env {
+            name  = "REDIS_PREFIX"
+            value = "centrifugo"
+          }
+
+          env {
+            name  = "REDIS_PRESENCE_INTERVAL"
+            value = "2s"
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service_v1" "backend" {
+  metadata {
+    name      = "pong-backend"
+    namespace = var.k8s_namespace
+  }
+
+  spec {
+    selector = {
+      app = "pong-backend"
+    }
+
+    port {
+      name        = "http"
+      port        = 80
+      target_port = var.backend_port
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
+resource "kubernetes_deployment_v1" "centrifugo" {
+  metadata {
+    name      = "pong-centrifugo"
+    namespace = var.k8s_namespace
+    labels = {
+      app = "pong-centrifugo"
+    }
+  }
+
+  spec {
+    replicas = var.desired_count_centrifugo
+
+    selector {
+      match_labels = {
+        app = "pong-centrifugo"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "pong-centrifugo"
+        }
+      }
+
+      spec {
+        container {
+          name  = "centrifugo"
+          image = var.centrifugo_image
+
+          port {
+            container_port = var.centrifugo_port
+          }
+
+          env {
+            name  = "CENTRIFUGO_CONFIG_JSON"
+            value = jsonencode(local.centrifugo_config)
+          }
+
+          command = ["/bin/sh", "-c", "echo \"$CENTRIFUGO_CONFIG_JSON\" > /centrifugo/config.json && centrifugo --config=/centrifugo/config.json"]
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service_v1" "centrifugo" {
+  metadata {
+    name      = "pong-centrifugo"
+    namespace = var.k8s_namespace
+  }
+
+  spec {
+    selector = {
+      app = "pong-centrifugo"
+    }
+
+    port {
+      name        = "http"
+      port        = 80
+      target_port = var.centrifugo_port
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
 resource "aws_cloudwatch_log_group" "backend" {
   name              = "/ecs/${local.name_prefix}-backend"
   retention_in_days = 14
