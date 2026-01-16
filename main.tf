@@ -247,6 +247,52 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.main.token
 }
 
+locals {
+  centrifugo_config = {
+    token_hmac_secret_key                 = var.centrifugo_secret
+    api_key                               = var.centrifugo_api_key
+    admin                                 = true
+    admin_password                        = "admin"
+    admin_secret                          = "admin-secret"
+    allowed_origins                       = ["*"]
+    engine                                = "redis"
+    redis_address                         = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/0"
+    redis_prefix                          = "centrifugo"
+    proxy_rpc_endpoint                    = "http://pong-backend/v1/centrifugo/rpc"
+    proxy_include_connection_meta         = true
+    proxy_http_headers                    = ["X-Centrifugo-User-Id"]
+    allow_anonymous_connect_without_token = true
+    namespaces = [
+      {
+        name                          = "pong_public"
+        history_size                  = 10
+        history_ttl                   = "300s"
+        force_recovery                = true
+        presence                      = true
+        join_leave                    = true
+        force_push_join_leave         = true
+        allow_subscribe_for_anonymous = true
+        allow_subscribe_for_client    = true
+        allow_history_for_anonymous   = true
+        allow_history_for_client      = true
+        allow_publish_for_anonymous   = false
+        allow_presence_for_anonymous  = false
+      },
+      {
+        name                          = "pong_private"
+        history_size                  = 0
+        history_ttl                   = "0s"
+        force_recovery                = false
+        presence                      = true
+        join_leave                    = true
+        force_push_join_leave         = true
+        allow_subscribe_for_anonymous = false
+        allow_publish_for_anonymous   = false
+      }
+    ]
+  }
+}
+
 resource "kubernetes_config_map_v1_data" "aws_auth" {
   metadata {
     name      = "aws-auth"
@@ -278,9 +324,9 @@ resource "kubernetes_secret_v1" "pong_secrets" {
     namespace = var.k8s_namespace
   }
 
-  string_data = {
-    CENTRIFUGO_SECRET  = var.centrifugo_secret
-    CENTRIFUGO_API_KEY = var.centrifugo_api_key
+  data = {
+    CENTRIFUGO_SECRET  = base64encode(var.centrifugo_secret)
+    CENTRIFUGO_API_KEY = base64encode(var.centrifugo_api_key)
   }
 }
 
