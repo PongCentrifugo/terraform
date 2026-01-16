@@ -42,24 +42,27 @@ locals {
     try(kubernetes_service_v1.centrifugo.status[0].load_balancer[0].ingress[0].hostname, ""),
     try(kubernetes_service_v1.centrifugo.status[0].load_balancer[0].ingress[0].ip, "")
   )
+
+  backend_public_hostname    = var.cloudflare_api_hostname != "" ? var.cloudflare_api_hostname : local.backend_lb_hostname
+  centrifugo_public_hostname = var.cloudflare_ws_hostname != "" ? var.cloudflare_ws_hostname : local.centrifugo_lb_hostname
 }
 
 output "backend_service_hostname" {
-  value       = local.backend_lb_hostname
+  value       = local.backend_public_hostname
   description = "Kubernetes LoadBalancer hostname/IP for backend service."
 }
 
 output "centrifugo_service_hostname" {
-  value       = local.centrifugo_lb_hostname
+  value       = local.centrifugo_public_hostname
   description = "Kubernetes LoadBalancer hostname/IP for Centrifugo service."
 }
 
 output "vite_backend_url" {
-  value       = local.backend_lb_hostname == "" ? "" : "http://${local.backend_lb_hostname}"
+  value       = local.backend_public_hostname == "" ? "" : "https://${local.backend_public_hostname}"
   description = "Frontend env value for VITE_BACKEND_URL."
 }
 
 output "vite_centrifugo_url" {
-  value       = local.centrifugo_lb_hostname == "" ? "" : "ws://${local.centrifugo_lb_hostname}/connection/websocket"
+  value       = local.centrifugo_public_hostname == "" ? "" : "wss://${local.centrifugo_public_hostname}/connection/websocket"
   description = "Frontend env value for VITE_CENTRIFUGO_URL."
 }

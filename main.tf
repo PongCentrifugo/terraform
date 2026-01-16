@@ -512,6 +512,50 @@ resource "kubernetes_service_v1" "centrifugo" {
   }
 }
 
+resource "kubernetes_deployment_v1" "cloudflared" {
+  count = var.cloudflare_tunnel_token == "" ? 0 : 1
+
+  metadata {
+    name      = "cloudflared"
+    namespace = var.k8s_namespace
+    labels = {
+      app = "cloudflared"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "cloudflared"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "cloudflared"
+        }
+      }
+
+      spec {
+        container {
+          name  = "cloudflared"
+          image = "cloudflare/cloudflared:latest"
+
+          env {
+            name  = "TUNNEL_TOKEN"
+            value = var.cloudflare_tunnel_token
+          }
+
+          command = ["/bin/sh", "-c", "cloudflared tunnel --no-autoupdate run --token $TUNNEL_TOKEN"]
+        }
+      }
+    }
+  }
+}
+
 resource "aws_cloudwatch_log_group" "backend" {
   name              = "/ecs/${local.name_prefix}-backend"
   retention_in_days = 14

@@ -97,3 +97,21 @@ variable "k8s_namespace" {
   description = "Kubernetes namespace for deployments."
   default     = "default"
 }
+
+variable "cloudflare_tunnel_token" {
+  type        = string
+  description = "Cloudflare Tunnel token for cloudflared."
+  default     = ""
+}
+
+variable "cloudflare_api_hostname" {
+  type        = string
+  description = "Cloudflare hostname for backend API (e.g. api.pong.stabalmo.pro)."
+  default     = ""
+}
+
+variable "cloudflare_ws_hostname" {
+  type        = string
+  description = "Cloudflare hostname for Centrifugo WS (e.g. cf.pong.stabalmo.pro)."
+  default     = ""
+}
