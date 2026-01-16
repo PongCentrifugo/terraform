@@ -549,7 +549,7 @@ resource "kubernetes_deployment_v1" "cloudflared" {
             value = var.cloudflare_tunnel_token
           }
 
-          command = ["/bin/sh", "-c", "cloudflared tunnel --no-autoupdate run --token $TUNNEL_TOKEN"]
+          args = ["tunnel", "--no-autoupdate", "run", "--token", var.cloudflare_tunnel_token]
         }
       }
     }
