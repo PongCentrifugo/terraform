@@ -449,7 +449,7 @@ resource "kubernetes_service_v1" "backend" {
 
     port {
       name        = "http"
-      port        = 80
+      port        = var.backend_port
       target_port = var.backend_port
     }
 
@@ -523,7 +523,7 @@ resource "kubernetes_service_v1" "centrifugo" {
 
     port {
       name        = "http"
-      port        = 80
+      port        = var.centrifugo_port
       target_port = var.centrifugo_port
     }
 
