@@ -258,7 +258,7 @@ locals {
     engine                                = "redis"
     redis_address                         = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379/0"
     redis_prefix                          = "centrifugo"
-    proxy_rpc_endpoint                    = "http://pong-backend/v1/centrifugo/rpc"
+    proxy_rpc_endpoint                    = "http://pong-backend:${var.backend_port}/v1/centrifugo/rpc"
     proxy_include_connection_meta         = true
     proxy_http_headers                    = ["X-Centrifugo-User-Id"]
     allow_anonymous_connect_without_token = true
