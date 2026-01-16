@@ -152,12 +152,13 @@ Set these **Terraform variables** in the workspace:
 - `cloudflare_ws_hostname` (cf.pong.stabalmo.pro)
 
 ### Cloudflare Tunnel (required for SSL on ws/api)
-1. Cloudflare Zero Trust → **Access > Tunnels** → Create tunnel
-2. Copy the tunnel token → set `cloudflare_tunnel_token`
-3. Add **Public Hostnames**:
+1. Cloudflare Zero Trust → **Networks > Connectors** → Create tunnel
+2. Choose **Cloudflared** as the tunnel type
+3. Copy the tunnel token → set `cloudflare_tunnel_token`
+4. Add **Public Hostnames**:
    - `api.pong.stabalmo.pro` → `http://pong-backend.default.svc.cluster.local:8080`
    - `cf.pong.stabalmo.pro` → `http://pong-centrifugo.default.svc.cluster.local:8000`
-4. Make sure DNS records are created automatically by Cloudflare.
+5. Make sure DNS records are created automatically by Cloudflare.
 - `cloudflare_tunnel_token` (token from Cloudflare Zero Trust tunnel)
 - `cloudflare_api_hostname` (api.pong.stabalmo.pro)
 - `cloudflare_ws_hostname` (cf.pong.stabalmo.pro)
