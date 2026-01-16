@@ -342,6 +342,10 @@ resource "kubernetes_deployment_v1" "backend" {
   spec {
     replicas = var.desired_count_backend
 
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = {
         app = "pong-backend"
@@ -352,6 +356,14 @@ resource "kubernetes_deployment_v1" "backend" {
       metadata {
         labels = {
           app = "pong-backend"
+        }
+        annotations = {
+          "config-hash" = sha256(jsonencode({
+            image      = var.backend_image
+            api_key    = var.centrifugo_api_key
+            secret     = var.centrifugo_secret
+            redis_addr = aws_elasticache_cluster.redis.cache_nodes[0].address
+          }))
         }
       }
 
@@ -457,6 +469,10 @@ resource "kubernetes_deployment_v1" "centrifugo" {
   spec {
     replicas = var.desired_count_centrifugo
 
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = {
         app = "pong-centrifugo"
@@ -467,6 +483,9 @@ resource "kubernetes_deployment_v1" "centrifugo" {
       metadata {
         labels = {
           app = "pong-centrifugo"
+        }
+        annotations = {
+          "config-hash" = sha256(jsonencode(local.centrifugo_config))
         }
       }
 
@@ -526,6 +545,10 @@ resource "kubernetes_deployment_v1" "cloudflared" {
   spec {
     replicas = 1
 
+    strategy {
+      type = "Recreate"
+    }
+
     selector {
       match_labels = {
         app = "cloudflared"
@@ -537,17 +560,15 @@ resource "kubernetes_deployment_v1" "cloudflared" {
         labels = {
           app = "cloudflared"
         }
+        annotations = {
+          "config-hash" = sha256(var.cloudflare_tunnel_token)
+        }
       }
 
       spec {
         container {
           name  = "cloudflared"
           image = "cloudflare/cloudflared:latest"
-
-          env {
-            name  = "TUNNEL_TOKEN"
-            value = var.cloudflare_tunnel_token
-          }
 
           args = ["tunnel", "--no-autoupdate", "run", "--token", var.cloudflare_tunnel_token]
         }
