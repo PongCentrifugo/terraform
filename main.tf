@@ -325,8 +325,8 @@ resource "kubernetes_secret_v1" "pong_secrets" {
   }
 
   data = {
-    CENTRIFUGO_SECRET  = base64encode(var.centrifugo_secret)
-    CENTRIFUGO_API_KEY = base64encode(var.centrifugo_api_key)
+    CENTRIFUGO_SECRET  = var.centrifugo_secret
+    CENTRIFUGO_API_KEY = var.centrifugo_api_key
   }
 }
 
@@ -383,7 +383,7 @@ resource "kubernetes_deployment_v1" "backend" {
 
           env {
             name  = "CENTRIFUGO_API_URL"
-            value = "http://pong-centrifugo"
+            value = "http://pong-centrifugo:${var.centrifugo_port}/api"
           }
 
           env {
