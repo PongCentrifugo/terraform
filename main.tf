@@ -99,6 +99,14 @@ resource "aws_security_group" "eks_cluster" {
   description = "EKS cluster security group"
   vpc_id      = aws_vpc.main.id
 
+  # Allow nodes to communicate with the cluster API server
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -273,8 +281,8 @@ resource "aws_eks_node_group" "main" {
     min_size     = 1
   }
 
-  # t3.small is cheaper (~50% less) and enough for pong game
-  instance_types = ["t3.small"]
+  # t3.medium needed for EKS system pods + app pods
+  instance_types = ["t3.medium"]
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_nodes_worker,
@@ -648,6 +656,17 @@ resource "kubernetes_deployment_v1" "cloudflared" {
         container {
           name  = "cloudflared"
           image = "cloudflare/cloudflared:latest"
+
+          resources {
+            limits = {
+              cpu    = "200m"
+              memory = "128Mi"
+            }
+            requests = {
+              cpu    = "50m"
+              memory = "64Mi"
+            }
+          }
 
           args = ["tunnel", "--no-autoupdate", "run", "--token", var.cloudflare_tunnel_token]
         }
