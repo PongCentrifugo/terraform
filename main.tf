@@ -112,11 +112,27 @@ resource "aws_security_group" "eks_nodes" {
   description = "EKS worker nodes security group"
   vpc_id      = aws_vpc.main.id
 
+  # Only allow traffic from within VPC - not from internet
   ingress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  # Allow cluster control plane communication
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.eks_cluster.id]
+  }
+
+  ingress {
+    from_port       = 10250
+    to_port         = 10250
+    protocol        = "tcp"
+    security_groups = [aws_security_group.eks_cluster.id]
   }
 
   egress {
@@ -144,8 +160,41 @@ resource "aws_ecr_repository" "backend" {
   name = "${local.name_prefix}-backend"
 }
 
+# Lifecycle policy to limit stored images (prevent storage abuse)
+resource "aws_ecr_lifecycle_policy" "backend" {
+  repository = aws_ecr_repository.backend.name
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep only last 5 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 5
+      }
+      action = { type = "expire" }
+    }]
+  })
+}
+
 resource "aws_ecr_repository" "centrifugo" {
   name = "${local.name_prefix}-centrifugo"
+}
+
+resource "aws_ecr_lifecycle_policy" "centrifugo" {
+  repository = aws_ecr_repository.centrifugo.name
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep only last 5 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 5
+      }
+      action = { type = "expire" }
+    }]
+  })
 }
 
 resource "aws_iam_role" "eks_cluster" {
@@ -219,12 +268,13 @@ resource "aws_eks_node_group" "main" {
   subnet_ids      = aws_subnet.private[*].id
 
   scaling_config {
-    desired_size = 2
-    max_size     = 3
+    desired_size = 1
+    max_size     = 2
     min_size     = 1
   }
 
-  instance_types = ["t3.medium"]
+  # t3.small is cheaper (~50% less) and enough for pong game
+  instance_types = ["t3.small"]
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_nodes_worker,
@@ -262,6 +312,11 @@ locals {
     proxy_include_connection_meta         = true
     proxy_http_headers                    = ["X-Centrifugo-User-Id"]
     allow_anonymous_connect_without_token = true
+    # Rate limiting to prevent abuse
+    client_concurrency          = 128
+    client_channel_limit        = 16
+    client_queue_max_size       = 1048576
+    client_user_connection_limit = 4
     namespaces = [
       {
         name                          = "pong_public"
@@ -371,6 +426,18 @@ resource "kubernetes_deployment_v1" "backend" {
         container {
           name  = "backend"
           image = var.backend_image
+
+          # Resource limits to prevent abuse
+          resources {
+            limits = {
+              cpu    = "500m"
+              memory = "256Mi"
+            }
+            requests = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
+          }
 
           port {
             container_port = var.backend_port
@@ -494,6 +561,18 @@ resource "kubernetes_deployment_v1" "centrifugo" {
           name  = "centrifugo"
           image = var.centrifugo_image
 
+          # Resource limits to prevent abuse
+          resources {
+            limits = {
+              cpu    = "500m"
+              memory = "256Mi"
+            }
+            requests = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
+          }
+
           port {
             container_port = var.centrifugo_port
           }
@@ -579,12 +658,39 @@ resource "kubernetes_deployment_v1" "cloudflared" {
 
 resource "aws_cloudwatch_log_group" "backend" {
   name              = "/ecs/${local.name_prefix}-backend"
-  retention_in_days = 14
+  retention_in_days = 7  # Reduced from 14 to save storage
 }
 
 resource "aws_cloudwatch_log_group" "centrifugo" {
   name              = "/ecs/${local.name_prefix}-centrifugo"
-  retention_in_days = 14
+  retention_in_days = 7  # Reduced from 14 to save storage
+}
+
+# AWS Budget to alert on overspending (protection against abuse)
+resource "aws_budgets_budget" "monthly_cost" {
+  count             = var.budget_alert_email != "" ? 1 : 0
+  name              = "${local.name_prefix}-monthly-budget"
+  budget_type       = "COST"
+  limit_amount      = var.monthly_budget_limit
+  limit_unit        = "USD"
+  time_unit         = "MONTHLY"
+  time_period_start = "2024-01-01_00:00"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = [var.budget_alert_email]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.budget_alert_email]
+  }
 }
 
 resource "aws_elasticache_subnet_group" "redis" {

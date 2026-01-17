@@ -115,3 +115,15 @@ variable "cloudflare_ws_hostname" {
   description = "Cloudflare hostname for Centrifugo WS (e.g. cf.pong.stabalmo.pro)."
   default     = ""
 }
+
+variable "monthly_budget_limit" {
+  type        = string
+  description = "Monthly AWS budget limit in USD."
+  default     = "50"
+}
+
+variable "budget_alert_email" {
+  type        = string
+  description = "Email for budget alerts."
+  default     = ""
+}
